@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Admin - CBT SMP PLUS ANNUUR</title>
+  <title>Dashboard Admin - CBTsimpel</title>
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
@@ -54,7 +54,7 @@
       <div class="text-center mb-3">
         <i class="bi bi-shield-lock-fill display-4 text-primary"></i>
         <h4 class="fw-bold mt-2">Proteksi Dashboard Admin</h4>
-        <p class="text-muted small">Masukkan password admin untuk mengakses sistem CBT</p>
+        <p class="text-muted small">Masukkan password admin untuk mengakses sistem CBTsimpel</p>
       </div>
       
       <form id="formLoginAdmin" onsubmit="prosesLoginAdmin(event)">
@@ -634,14 +634,13 @@
 
 <script>
   const firebaseConfig = {
-    apiKey: "AIzaSyAQMezLiMQpxpA5xNljS9FshOiySZidyH0",
-    authDomain: "cbt-smp-plus-annuur.firebaseapp.com",
-    databaseURL: "https://cbt-smp-plus-annuur-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "cbt-smp-plus-annuur",
-    storageBucket: "cbt-smp-plus-annuur.firebasestorage.app",
-    messagingSenderId: "532389855175",
-    appId: "1:532389855175:web:91c38fde7bbfd3ae87a3e2",
-    measurementId: "G-FSWFDSQK7T"
+    apiKey: "AIzaSyC-c32M-9Vb7kNhpZxbStOAQlBTd_baPyE",
+    authDomain: "cbtsimpel.firebaseapp.com",
+    databaseURL: "https://cbtsimpel-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "cbtsimpel",
+    storageBucket: "cbtsimpel.firebasestorage.app",
+    messagingSenderId: "177755920789",
+    appId: "1:177755920789:web:9c0198b56b705a8efe3e9c"
   };
 
   if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
@@ -1012,7 +1011,7 @@
     const areaCetak = document.getElementById("areaCetakKartu");
     if (!areaCetak) return;
 
-    let htmlKartu = `<h3 class="text-center fw-bold mb-4">KARTU PESERTA UJIAN CBT SMP PLUS ANNUUR</h3>`;
+    let htmlKartu = `<h3 class="text-center fw-bold mb-4">KARTU PESERTA UJIAN CBTsimpel</h3>`;
     let adaSiswa = false;
     let qrTargetData = [];
 
@@ -1026,7 +1025,7 @@
         htmlKartu += `
           <div class="kartu-ujian d-inline-block m-2 p-3 border rounded shadow-sm bg-white" style="width: 46%; vertical-align: top; page-break-inside: avoid;">
             <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-              <h6 class="fw-bold m-0 text-primary">SMP PLUS ANNUUR</h6>
+              <h6 class="fw-bold m-0 text-primary">CBTsimpel</h6>
               <span class="badge bg-dark">${s.kelas || '-'}</span>
             </div>
             <div class="row">
