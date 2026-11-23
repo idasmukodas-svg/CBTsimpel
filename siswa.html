@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBT SMP PLUS ANNUUR - Portal Siswa</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Firebase SDK Compat (App & Realtime Database) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <style>
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #f8f9fa;
+    }
+  </style>
+</head>
+<body class="d-flex flex-column align-items-center justify-content-center min-vh-100 py-4 px-3">
+
+  <div class="card shadow-sm p-4 mb-3" style="width: 100%; max-width: 450px;">
+    <div class="text-center mb-4">
+      <i class="bi bi-mortarboard-fill display-4 text-primary"></i>
+      <h3 class="fw-bold mt-2">CBT SMP PLUS ANNUUR</h3>
+      <p class="text-muted small">Silakan login untuk mengikuti ujian</p>
+    </div>
+
+    <form id="formLoginSiswa">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Nomor Ujian / NISN</label>
+        <input type="text" id="inputNomorUjian" class="form-control font-monospace" placeholder="Masukkan nomor ujian atau NISN..." required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Password Siswa</label>
+        <input type="password" id="passwordSiswa" class="form-control" placeholder="Masukkan password Anda" required>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Mata Pelajaran / Ujian</label>
+        <select id="loginDropdownUjian" class="form-select" required>
+          <option value="">-- Memuat Ujian Aktif... --</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Token Ujian</label>
+        <input type="text" id="tokenUjian" class="form-control text-uppercase font-monospace" placeholder="Masukkan Token dari Pengawas" required>
+      </div>
+
+      <button type="submit" id="btnMulaiUjian" class="btn btn-primary w-100 py-2 fw-semibold">
+        <i class="bi bi-box-arrow-in-right me-1"></i> Mulai Ujian
+      </button>
+    </form>
+  </div>
+
+  <!-- FOOTER DEVELOPER -->
+  <div class="text-center text-muted small">
+    Powered by <strong class="text-dark">Trihira Studio Tech By Idas Mukodas</strong> &copy; 2026
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQMezLiMQpxpA5xNljS9FshOiySZidyH0",
+      authDomain: "cbt-smp-plus-annuur.firebaseapp.com",
+      databaseURL: "https://cbt-smp-plus-annuur-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "cbt-smp-plus-annuur",
+      storageBucket: "cbt-smp-plus-annuur.firebasestorage.app",
+      messagingSenderId: "532389855175",
+      appId: "1:532389855175:web:91c38fde7bbfd3ae87a3e2",
+      measurementId: "G-FSWFDSQK7T"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const dbRef = firebase.database().ref();
+
+    let globalDaftarSiswa = [];
+    let globalDaftarUjian = [];
+    let sedangProsesLogin = false;
+
+    function cocokkanTargetKelas(targetKelasRaw, kelasSiswaRaw) {
+      const target = String(targetKelasRaw || "Semua Kelas").trim();
+      const kelasSiswa = String(kelasSiswaRaw || "").trim();
+      const targetLower = target.toLowerCase();
+      const kelasLower = kelasSiswa.toLowerCase();
+
+      if (target === "Semua Kelas" || targetLower.includes("semua kelas") || targetLower.includes("seluruh sekolah")) {
+        return true;
+      }
+      if (!kelasSiswa) return false;
+
+      if (target.includes("TINGKAT_7") || /\bvii\b/i.test(target) || target === "7") {
+        return kelasSiswa.startsWith("7") || /\bvii\b/i.test(kelasLower);
+      }
+      if (target.includes("TINGKAT_8") || /\bviii\b/i.test(target) || target === "8") {
+        return kelasSiswa.startsWith("8") || /\bviii\b/i.test(kelasLower);
+      }
+      if (target.includes("TINGKAT_9") || /\bix\b/i.test(target) || target === "9") {
+        return kelasSiswa.startsWith("9") || /\bix\b/i.test(kelasLower);
+      }
+
+      const normTarget = targetLower.replace(/\s+/g, " ");
+      const normKelas = kelasLower.replace(/\s+/g, " ");
+      return normTarget === normKelas || normTarget === `kelas ${normKelas}`;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const selectUjian = document.getElementById("loginDropdownUjian");
+      const formLogin = document.getElementById("formLoginSiswa");
+
+      // Cek parameter NISN dari hasil Scan QR Code
+      const urlParams = new URLSearchParams(window.location.search);
+      const nisnFromQR = urlParams.get("nisn");
+      if (nisnFromQR) {
+        const inputNomor = document.getElementById("inputNomorUjian");
+        if (inputNomor) inputNomor.value = nisnFromQR.trim();
+      }
+
+      // Ambil Data Siswa
+      dbRef.child("siswa").on("value", (snapshot) => {
+        const daftarBaru = [];
+        const data = snapshot.val();
+        if (data) {
+          Object.keys(data).forEach((key) => {
+            daftarBaru.push({ id: key, ...data[key] });
+          });
+        }
+        globalDaftarSiswa = daftarBaru;
+      });
+
+      // Ambil Data Ujian Aktif
+      dbRef.child("ujian").on("value", (snapshot) => {
+        const daftarUjianBaru = [];
+        const data = snapshot.val();
+        if (data) {
+          Object.keys(data).forEach((key) => {
+            daftarUjianBaru.push({ id: key, ...data[key] });
+          });
+        }
+        globalDaftarUjian = daftarUjianBaru;
+
+        const pilihanSebelumnya = selectUjian.value;
+        selectUjian.innerHTML = '<option value="">-- Pilih Ujian yang Aktif --</option>';
+
+        const ujianAktif = globalDaftarUjian.filter(
+          (u) => u.status && String(u.status).trim().toLowerCase() === "aktif"
+        );
+
+        if (ujianAktif.length === 0) {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "-- Belum ada ujian aktif --";
+          selectUjian.appendChild(opt);
+        } else {
+          ujianAktif.forEach((u) => {
+            const opt = document.createElement("option");
+            opt.value = u.id;
+            opt.textContent = `${u.mapel} - ${u.judul} (${u.targetKelas || "Semua Kelas"})`;
+            selectUjian.appendChild(opt);
+          });
+
+          if (pilihanSebelumnya && ujianAktif.some((u) => u.id === pilihanSebelumnya)) {
+            selectUjian.value = pilihanSebelumnya;
+          }
+        }
+      });
+
+      // Proses Validasi Login Siswa
+      formLogin.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (sedangProsesLogin) return;
+
+        const inputNomor = document.getElementById("inputNomorUjian").value.trim();
+        const passwordInput = document.getElementById("passwordSiswa").value.trim();
+        const ujianPilihan = document.getElementById("loginDropdownUjian").value;
+        const tokenInput = document.getElementById("tokenUjian").value.trim().toUpperCase();
+
+        const siswa = globalDaftarSiswa.find(
+          (s) => String(s.nisn || "").trim().toLowerCase() === inputNomor.toLowerCase()
+        );
+        if (!siswa) {
+          alert("Nomor Ujian / NISN tidak terdaftar!");
+          return;
+        }
+
+        const passwordDB = siswa.password !== undefined && siswa.password !== null
+          ? String(siswa.password).trim()
+          : "123";
+        if (passwordDB !== passwordInput) {
+          alert("Password salah!");
+          return;
+        }
+
+        const ujian = globalDaftarUjian.find(
+          (u) => u.id === ujianPilihan && u.status && String(u.status).trim().toLowerCase() === "aktif"
+        );
+        if (!ujian) {
+          alert("Ujian tidak valid atau sudah ditutup!");
+          return;
+        }
+
+        if (String(ujian.token || "").trim().toUpperCase() !== tokenInput) {
+          alert("Token Ujian salah!");
+          return;
+        }
+
+        const targetKelasUjian = ujian.targetKelas || "Semua Kelas";
+        const kelasSiswa = siswa.kelas ? String(siswa.kelas).trim() : "";
+
+        if (!cocokkanTargetKelas(targetKelasUjian, kelasSiswa)) {
+          alert(`Maaf, ujian ini dikhususkan untuk: ${targetKelasUjian}. Kelas Anda (${kelasSiswa || "-"}) tidak diizinkan!`);
+          return;
+        }
+
+        const btnSubmit = document.getElementById("btnMulaiUjian");
+        sedangProsesLogin = true;
+        if (btnSubmit) btnSubmit.disabled = true;
+
+        const rekapKey = `${siswa.nisn}_${ujian.id}`;
+        dbRef.child("rekapNilai").orderByChild("nisn_ujian").equalTo(rekapKey).once("value", (snapshot) => {
+          let sudahMengerjakan = false;
+          const rekapData = snapshot.val();
+          if (rekapData) {
+            Object.values(rekapData).forEach((r) => {
+              if (
+                String(r.nisn || "").trim() === String(siswa.nisn).trim() &&
+                String(r.ujianId || r.mapel || "").trim() === String(ujian.id || ujian.mapel).trim()
+              ) {
+                sudahMengerjakan = true;
+              }
+            });
+          }
+
+          if (sudahMengerjakan) {
+            sedangProsesLogin = false;
+            if (btnSubmit) btnSubmit.disabled = false;
+            alert("Anda sudah pernah menyelesaikan ujian ini!");
+            return;
+          }
+
+          localStorage.setItem("sessionSiswa", JSON.stringify({
+            nisn: String(siswa.nisn).trim(),
+            nama: String(siswa.nama || "").trim(),
+            kelas: kelasSiswa,
+            ujianId: ujian.id,
+            mapel: ujian.mapel,
+            judul: ujian.judul || "-"
+          }));
+
+          alert(`Selamat datang, ${siswa.nama}! Ujian akan segera dimulai.`);
+          window.location.href = "ruang-ujian.html";
+        }).catch((err) => {
+          sedangProsesLogin = false;
+          if (btnSubmit) btnSubmit.disabled = false;
+          alert("Gagal memeriksa status ujian: " + err.message);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
